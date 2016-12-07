@@ -66,6 +66,16 @@ class Image:
     def instance(self, row, col):
         sel_rgb = self.image[row, col]
         return [sel_rgb[g_RED_INDEX], sel_rgb[g_GREEN_INDEX], sel_rgb[g_BLUE_INDEX]]
+
+    def update_mask(self, colors, mask):
+        row_count, col_count = self.size()
+        for i in range(row_count):
+            for j in range(col_count):
+                color_index = mask[i][j]
+                color = colors[color_index]
+                self.image[i, j][g_RED_INDEX] = color[g_RED_INDEX]
+                self.image[i, j][g_GREEN_INDEX] = color[g_GREEN_INDEX]
+                self.image[i, j][g_BLUE_INDEX] = color[g_BLUE_INDEX]
 # </editor-fold>
 
 
@@ -82,49 +92,59 @@ def set_labels(obj, clusters):
             index = -1
             for c in clusters:
                 index += 1
-                d = math.sqrt(sum(cell - c) ^ 2)
+                d = math.sqrt(sum((cell - c) ** 2))
                 if d < min_d:
                     min_d = d
                     min_d_index = index
 
             labels[row_index].append(min_d_index)
             # Update each cell (or pixel) with center of nearest cluster
-            cell[g_RED_INDEX] = clusters[min_d_index][g_RED_INDEX]
-            cell[g_GREEN_INDEX] = clusters[min_d_index][g_GREEN_INDEX]
-            cell[g_BLUE_INDEX] = clusters[min_d_index][g_BLUE_INDEX]
+            # cell[g_RED_INDEX] = clusters[min_d_index][g_RED_INDEX]
+            # cell[g_GREEN_INDEX] = clusters[min_d_index][g_GREEN_INDEX]
+            # cell[g_BLUE_INDEX] = clusters[min_d_index][g_BLUE_INDEX]
     # printl(labels)
     #         print_(min_d_index)
     #     printl('] ')
     return labels
 
 
-def update_centers(obj, labels, clusters):
+# def update_centers(obj, labels, clusters):
+def update_centers(obj, labels):
     # old_clusters = [clusters[i][:] for i in range(len(clusters))]
     # clusters = [[0, 0, 0] for i in range(len(clusters))]
     # clusters_count = [0 for i in range(len(clusters))]
 
     new_clusters = []
     clusters_count = []
-    for i in range(len(clusters)):
+    for i in range(g_CLUSTER_COUNT):
         new_clusters.append([0, 0, 0])
         clusters_count.append(0)
 
-    print "new_clusters: \n", new_clusters
-    print "old_clusters: \n", clusters
-
     row_index = -1
     for row in obj.image:
-        cell_index = -1
         row_index += 1
+        cell_index = -1
         for cell in row:
             cell_index += 1
             c = labels[row_index][cell_index]
-            new_clusters[c] += cell
+            new_clusters[c][g_RED_INDEX] += cell[g_RED_INDEX]
+            new_clusters[c][g_GREEN_INDEX] += cell[g_GREEN_INDEX]
+            new_clusters[c][g_BLUE_INDEX] += cell[g_BLUE_INDEX]
             clusters_count[c] += 1
+
+    r, c = obj.size()
     cluster_index = -1
     for cluster in new_clusters:
         cluster_index += 1
-        cluster /= ([clusters_count[cluster_index]] * 3)
+        if clusters_count[cluster_index] == 0:
+            rand_r = random.randint(0, r)
+            rand_c = random.randint(0, c)
+            new_clusters[cluster_index] = obj.instance(rand_r, rand_c)
+        else:
+            cluster[g_RED_INDEX] /= clusters_count[cluster_index]
+            cluster[g_GREEN_INDEX] /= clusters_count[cluster_index]
+            cluster[g_BLUE_INDEX] /= clusters_count[cluster_index]
+
     # for i in range(clusters):
     #     clusters[i] /= ([clusters_count[i]] * 3)
     print "new_clusters: \n", new_clusters
@@ -144,7 +164,7 @@ def k_means(obj):
 
     # Converging loop
     iter = 0
-    old_clusters = None
+    labels = None
     should_stop = false
     while not should_stop:
         old_clusters = [[row[g_RED_INDEX], row[g_GREEN_INDEX], row[g_BLUE_INDEX]] for row in clusters]
@@ -153,19 +173,28 @@ def k_means(obj):
         # Set label for every point
         labels = set_labels(obj, clusters)
 
+        print_("old_clustes :")
+        printl(clusters)
         # Update center of clusters
-        clusters = update_centers(obj, labels, clusters)
+        clusters = update_centers(obj, labels)
 
-        if (iter > g_MAX_ITERATION) or np.all([old_clusters[i]] == clusters[i] for i in range(g_CLUSTER_COUNT)):
+        is_converged = true # np.all([old_clusters[i]] == clusters[i] for i in range(g_CLUSTER_COUNT))
+        for i in range(g_CLUSTER_COUNT):
+            if (old_clusters[i][g_RED_INDEX] != clusters[i][g_RED_INDEX]) or (old_clusters[i][g_GREEN_INDEX] != clusters[i][g_GREEN_INDEX]) or (old_clusters[i][g_BLUE_INDEX] != clusters[i][g_BLUE_INDEX]):
+                is_converged = false
+                break
+        if (iter > g_MAX_ITERATION) or is_converged:
             should_stop = true
     print_("...finished")
+    return clusters, labels
 
 img = Image(misc.imread(g_TEST))
 
 plt.imshow(img.image)
-plt.show()
+# plt.show()
 
-k_means(img)
+centers, mask = k_means(img)
+img.update_mask(centers, mask)
 
 plt.imshow(img.image)
 plt.show()
