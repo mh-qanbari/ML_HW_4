@@ -1,7 +1,7 @@
 from scipy import misc, random
 from joblib import Parallel, delayed
 import numpy as np
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import math
 import platform
 import multiprocessing
@@ -34,8 +34,6 @@ if platform.system() == 'Linux':
         print obj,
         sys.stdout = orig_stdout
         print obj,
-
-
     # </editor-fold>
 
     # <editor-fold desc="Parameters">
@@ -48,7 +46,8 @@ if platform.system() == 'Linux':
     g_TEST07 = "BSDS300/images/train/28075.jpg"
     g_TEST08 = "BSDS300/images/train/35008.jpg"
     g_TEST09 = "BSDS300/images/train/181018.jpg"
-    g_TEST10 = "test.jpg"
+    g_TEST10 = "BSDS300/images/train/65019.jpg"
+    # g_TEST10 = "test.jpg"
     g_FILES_ADDRESS = [g_TEST01, g_TEST02, g_TEST03, g_TEST04, g_TEST05, g_TEST06, g_TEST07, g_TEST08, g_TEST09,
                        g_TEST10]
 
@@ -63,6 +62,7 @@ if platform.system() == 'Linux':
     # <editor-fold desc="Image declaration">
     class Image:
         image = np.ndarray(shape=(0, 0))
+        id = None
 
         def __init__(self):
             self.image = np.ndarray(shape=(0, 0))
@@ -199,17 +199,26 @@ if platform.system() == 'Linux':
         return clusters, labels
 
 
-    imgs = [Image(misc.imread(file)) for file in g_FILES_ADDRESS]
+    # imgs = [Image(misc.imread(file)) for file in g_FILES_ADDRESS]
+    imgs = []
+    for i in range(len(g_FILES_ADDRESS)):
+        img = Image(misc.imread(g_FILES_ADDRESS[i]))
+        img.id = i
+        imgs.append(img)
 
     # plt.imshow(img.image)
     # plt.show()
 
     def start(img):
+        printl("image["+str(img.id)+"] started")
         centers, mask = k_means(img)
         img.update_mask(centers, mask)
-        plt.imshow(img.image)
-        plt.show()
-        plt.imsave(strftime("%Y%m%d%H%M%S.jpg", gmtime()))
+        # plt.imshow(img.image)
+        # plt.show()
+        output_img_file = strftime("%Y%m%d%H%M%S.jpg", gmtime())
+        misc.imsave(output_img_file)
+        # printl("Final image <" + output_img_file + "> saved.")
+        printl("image[" + str(img.id) + "] finished")
         return img
 
     num_cores = multiprocessing.cpu_count()
