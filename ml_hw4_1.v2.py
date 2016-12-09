@@ -1,7 +1,5 @@
-# from scipy import misc, random
 from joblib import Parallel, delayed
 import numpy as np
-import matplotlib.pyplot as plt
 import math
 import platform
 import multiprocessing
@@ -63,32 +61,26 @@ if platform.system() == 'Linux':
     g_FILES_ADDRESS.append(g_TEST10)
 
     g_DATASET_FILE = "BSDS300/iids_test.txt"
-    g_MAX_ITERATION = 100
-    g_CLUSTER_COUNT = 3
-    g_RED_INDEX = 0
-    g_GREEN_INDEX = 1
-    g_BLUE_INDEX = 2
+    g_MAX_ITERATION = 10
+    g_CLUSTER_COUNT = 2
+    g_RGB_RED_INDEX = 0
+    g_RGB_GREEN_INDEX = 1
+    g_RGB_BLUE_INDEX = 2
+    g_GRAY_INDEX = 0
     g_MODE_IMG_RGB = "rgb"
     g_MODE_IMG_BW = "bw"
+    g_MODE_IMG_GRAY = "gray"
     # </editor-fold>
 
     # <editor-fold desc="ImageData declaration">
     class ImageData:
-        image = Image
+        image = None
         id = None
         __mode = None
 
-        # def __init__(self):
-        #     self.pixels = np.ndarray(shape=(0, 0))
-        #     self.pixels.setflags(write=true)
-        #     printl("Image initialized : 0x0")
-
-        def __init__(self, img):
+        def __init__(self, img, mode=g_MODE_IMG_RGB):
             self.image = img
-            if isinstance(img.getpixel((0, 0)), int):
-                self.__mode = g_MODE_IMG_BW
-            else:
-                self.__mode = g_MODE_IMG_RGB
+            self.__mode = mode
             printl("Image initialized : %dx%d" % (img.size[0], img.size[1]))
 
         def count(self):
@@ -97,20 +89,32 @@ if platform.system() == 'Linux':
         def pixel(self, row, col):
             return self.image.getpixel((row, col))
 
-        def setpixel(self, row, col, pixel):
-            self.image.putpixel((row, col), pixel)
+        def set_pixel(self, row, col, pixel):
+            pixels = np.asarray(self.image.getdata(), dtype=np.float64).reshape((self.image.size[1], self.image.size[0]))
+            pixels[col, row] = pixel
+            self.image = Image.fromarray(pixels, mode='L')
 
         def update_mask(self, colors, mask):
+            self.show()
             row_count = self.image.size[0]
             col_count = self.image.size[1]
+            pixels = np.asarray(self.image.getdata(), dtype=np.float64).reshape((col_count, row_count))
             for i in range(row_count):
                 for j in range(col_count):
                     color_index = mask[i][j]
                     color = colors[color_index]
                     if self.__mode == g_MODE_IMG_RGB:
-                        self.setpixel(i, j, (color[g_RED_INDEX], color[g_GREEN_INDEX], color[g_BLUE_INDEX]))
+                        pixels[j, i] = (color[g_RGB_RED_INDEX], color[g_RGB_GREEN_INDEX], color[g_RGB_BLUE_INDEX])
                     else:
-                        self.setpixel(i, j, color)
+                        pixels[j, i] = color
+            pixels = np.asarray(pixels, dtype=np.uint8)
+            if self.__mode == g_MODE_IMG_RGB:
+                self.image = Image.fromarray(pixels)
+            elif self.__mode == g_MODE_IMG_BW:
+                self.image = Image.fromarray(pixels, mode='1')
+            elif self.__mode == g_MODE_IMG_GRAY:
+                self.image = Image.fromarray(pixels, mode='L')
+            self.show()
 
         def is_color(self):
             if self.__mode == g_MODE_IMG_RGB:
@@ -118,11 +122,20 @@ if platform.system() == 'Linux':
             else:
                 return false
 
-        def is_gray(self):
+        def is_black_white(self):
             if self.__mode == g_MODE_IMG_BW:
                 return true
             else:
                 return false
+
+        def is_gray(self):
+            if self.__mode == g_MODE_IMG_GRAY:
+                return true
+            else:
+                return false
+
+        def show(self):
+            self.image.show()
     # </editor-fold>
 
     # <editor-fold desc="Make a mask of labels for any cell (pixel of image)">
@@ -142,7 +155,7 @@ if platform.system() == 'Linux':
                     d = 0
                     if obj.is_color():
                         d = math.sqrt(sum((np.array(pixel) - np.array(c)) ** 2))
-                    else:
+                    elif obj.is_black_white() or obj.is_gray():
                         d = math.fabs(pixel - c)
                     if d < min_d:
                         min_d = d
@@ -159,7 +172,7 @@ if platform.system() == 'Linux':
         for i in range(g_CLUSTER_COUNT):
             if obj.is_color():
                 new_clusters.append([0, 0, 0])
-            else:
+            elif obj.is_black_white() or obj.is_gray():
                 new_clusters.append(0)
             clusters_count.append(0)
 
@@ -170,10 +183,10 @@ if platform.system() == 'Linux':
                 pixel = obj.pixel(row_index, cell_index)
                 c = labels[row_index][cell_index]
                 if obj.is_color():
-                    new_clusters[c][g_RED_INDEX] += pixel[g_RED_INDEX]
-                    new_clusters[c][g_GREEN_INDEX] += pixel[g_GREEN_INDEX]
-                    new_clusters[c][g_BLUE_INDEX] += pixel[g_BLUE_INDEX]
-                else:
+                    new_clusters[c][g_RGB_RED_INDEX] += pixel[g_RGB_RED_INDEX]
+                    new_clusters[c][g_RGB_GREEN_INDEX] += pixel[g_RGB_GREEN_INDEX]
+                    new_clusters[c][g_RGB_BLUE_INDEX] += pixel[g_RGB_BLUE_INDEX]
+                elif obj.is_black_white() or obj.is_gray():
                     new_clusters[c] += pixel
                 clusters_count[c] += 1
 
@@ -182,19 +195,21 @@ if platform.system() == 'Linux':
         for cluster in new_clusters:
             cluster_index += 1
             if clusters_count[cluster_index] == 0:
-                if obj.is_color():
+                # if obj.is_color():
                     rand_r = random.randint(0, r)
                     rand_c = random.randint(0, c)
                     new_clusters[cluster_index] = obj.pixel(rand_r, rand_c)
-                else:
-                    new_clusters[cluster_index] = random.random() * 255
+                # elif obj.is_black_white() or obj.is_gray():
+                #     new_clusters[cluster_index] = random.random() * 255
             else:
+                count = clusters_count[cluster_index]
                 if obj.is_color():
-                    cluster[g_RED_INDEX] /= clusters_count[cluster_index]
-                    cluster[g_GREEN_INDEX] /= clusters_count[cluster_index]
-                    cluster[g_BLUE_INDEX] /= clusters_count[cluster_index]
-                else:
-                    cluster /= clusters_count[cluster_index]
+                    cluster[g_RGB_RED_INDEX] /= count
+                    cluster[g_RGB_GREEN_INDEX] /= count
+                    cluster[g_RGB_BLUE_INDEX] /= count
+                elif obj.is_black_white or obj.is_gray():
+                    cluster /= count
+                new_clusters[cluster_index] = cluster
         # print new_clusters
         return new_clusters
 
@@ -206,13 +221,12 @@ if platform.system() == 'Linux':
         # initialize center of clusters
         for i in range(g_CLUSTER_COUNT):
             r, c = obj.image.size
-            if obj.is_color():
-                rand_r = random.randint(0, r)
-                rand_c = random.randint(0, c)
-                clusters.append(obj.pixel(rand_r, rand_c))
-            else:
-                clusters.append(random.random() * 255)
-        # clusters.append(obj.instance(270, 447))
+            # if obj.is_color() or obj.is_gray():
+            rand_r = random.randint(0, r)
+            rand_c = random.randint(0, c)
+            clusters.append(obj.pixel(rand_r, rand_c))
+            # elif obj.is_black_white():
+            #     clusters.append(random.random() * 255)
 
         # Converging loop
         iter = 0
@@ -220,8 +234,8 @@ if platform.system() == 'Linux':
         should_stop = false
         while not should_stop:
             if obj.is_color():
-                old_clusters = [[row[g_RED_INDEX], row[g_GREEN_INDEX], row[g_BLUE_INDEX]] for row in clusters]
-            elif obj.is_gray():
+                old_clusters = [[row[g_RGB_RED_INDEX], row[g_RGB_GREEN_INDEX], row[g_RGB_BLUE_INDEX]] for row in clusters]
+            elif obj.is_black_white() or obj.is_gray():
                 old_clusters = [row for row in clusters]
             iter += 1
 
@@ -234,12 +248,12 @@ if platform.system() == 'Linux':
             is_converged = true
             for i in range(g_CLUSTER_COUNT):
                 if obj.is_color():
-                    if (old_clusters[i][g_RED_INDEX] != clusters[i][g_RED_INDEX])\
-                            or (old_clusters[i][g_GREEN_INDEX] != clusters[i][g_GREEN_INDEX])\
-                            or (old_clusters[i][g_BLUE_INDEX] != clusters[i][g_BLUE_INDEX]):
+                    if (old_clusters[i][g_RGB_RED_INDEX] != clusters[i][g_RGB_RED_INDEX])\
+                            or (old_clusters[i][g_RGB_GREEN_INDEX] != clusters[i][g_RGB_GREEN_INDEX])\
+                            or (old_clusters[i][g_RGB_BLUE_INDEX] != clusters[i][g_RGB_BLUE_INDEX]):
                         is_converged = false
                         break
-                else:
+                elif obj.is_black_white() or obj.is_gray():
                     if old_clusters[i] != clusters[i]:
                         is_converged = false
                         break
@@ -253,33 +267,30 @@ if platform.system() == 'Linux':
         printl("image["+str(img.id)+"] started")
         centers, mask = k_means(img)
         img.update_mask(centers, mask)
-        # plt.imshow(img.image)
-        # plt.show()
         output_img_file = strftime("%d.jpg" % img.id)
         output_img = img.image
-        plt.imshow(output_img)
-        plt.show()
         output_img.save(output_img_file)
-        # printl("Final image <" + output_img_file + "> saved.")
         printl("image[" + str(img.id) + "] finished")
         return img
 
-    imgs = []
+    images = []
     for i in range(len(g_FILES_ADDRESS)):
         filename = g_FILES_ADDRESS[i]
-        img_file = Image.open(filename)
-        img_file = img_file.convert('1')
-        img_dt = ImageData(img_file)
+        img_file = Image.open(filename, 'r')
+        # img_file = img_file.convert('1')
+        img_file = img_file.convert('L')
+
+        # img_dt = ImageData(img_file, mode=g_MODE_IMG_RGB)
+        # img_dt = ImageData(img_file, mode=g_MODE_IMG_BW)
+        img_dt = ImageData(img_file, mode=g_MODE_IMG_GRAY)
         iid = filename.split('/')[-1].split('.')[0]
         img_dt.id = int(iid)
-        imgs.append(img_dt)
-        # plt.imshow(img_file)
-        # plt.show()
+        images.append(img_dt)
     num_cores = multiprocessing.cpu_count()
-    results = Parallel(n_jobs=num_cores)(delayed(start)(img) for img in imgs[:])
+    results = Parallel(n_jobs=num_cores)(delayed(start)(img) for img in images[:])
     # results1 = Parallel(n_jobs=num_cores)(delayed(start)(img) for img in imgs[:num_cores])
     # results2 = Parallel(n_jobs=num_cores)(delayed(start)(img) for img in imgs[num_cores:])
-    # start(imgs[0])
+    # start(images[0])
 
     file_output.close()
 
