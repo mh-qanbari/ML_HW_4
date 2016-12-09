@@ -1,7 +1,7 @@
 from scipy import misc, random
 from joblib import Parallel, delayed
 import numpy as np
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 import math
 import platform
 import multiprocessing
@@ -48,8 +48,17 @@ if platform.system() == 'Linux':
     g_TEST09 = "BSDS300/images/train/181018.jpg"
     g_TEST10 = "BSDS300/images/train/65019.jpg"
     # g_TEST10 = "test.jpg"
-    g_FILES_ADDRESS = [g_TEST01, g_TEST02, g_TEST03, g_TEST04, g_TEST05, g_TEST06, g_TEST07, g_TEST08, g_TEST09,
-                       g_TEST10]
+    g_FILES_ADDRESS = []
+    g_FILES_ADDRESS.append(g_TEST01)
+    g_FILES_ADDRESS.append(g_TEST02)
+    g_FILES_ADDRESS.append(g_TEST03)
+    g_FILES_ADDRESS.append(g_TEST04)
+    g_FILES_ADDRESS.append(g_TEST05)
+    g_FILES_ADDRESS.append(g_TEST06)
+    g_FILES_ADDRESS.append(g_TEST07)
+    g_FILES_ADDRESS.append(g_TEST08)
+    g_FILES_ADDRESS.append(g_TEST09)
+    g_FILES_ADDRESS.append(g_TEST10)
 
     g_DATASET_FILE = "BSDS300/iids_test.txt"
     g_MAX_ITERATION = 100
@@ -66,13 +75,13 @@ if platform.system() == 'Linux':
 
         def __init__(self):
             self.image = np.ndarray(shape=(0, 0))
-            self.image.setflags(write=1, align=1)
+            self.image.setflags(write=true)
             printl("Image initialized : 0x0")
 
         def __init__(self, img):
             self.image = img
             row_size, col_size = self.size()
-            self.image.setflags(write=1, align=1)
+            self.image.setflags(write=true)
             printl("Image initialized : %dx%d" % (row_size, col_size))
 
         def get_rgb(self, row, col):
@@ -165,12 +174,12 @@ if platform.system() == 'Linux':
 
         clusters = []
         # initialize center of clusters
-        for i in range(g_CLUSTER_COUNT - 1):
+        for i in range(g_CLUSTER_COUNT):
             r, c = obj.size()
             rand_r = random.randint(0, r)
             rand_c = random.randint(0, c)
             clusters.append(obj.instance(rand_r, rand_c))
-        clusters.append(obj.instance(270, 447))
+        # clusters.append(obj.instance(270, 447))
 
         # Converging loop
         iter = 0
@@ -199,32 +208,35 @@ if platform.system() == 'Linux':
         return clusters, labels
 
 
-    # imgs = [Image(misc.imread(file)) for file in g_FILES_ADDRESS]
-    imgs = []
-    for i in range(len(g_FILES_ADDRESS)):
-        img = Image(misc.imread(g_FILES_ADDRESS[i]))
-        img.id = i
-        imgs.append(img)
-
-    # plt.imshow(img.image)
-    # plt.show()
-
     def start(img):
         printl("image["+str(img.id)+"] started")
         centers, mask = k_means(img)
         img.update_mask(centers, mask)
         # plt.imshow(img.image)
         # plt.show()
-        output_img_file = strftime("%Y%m%d%H%M%S.jpg", gmtime())
-        misc.imsave(output_img_file)
+        output_img_file = strftime("%d.jpg" % img.id)
+        misc.imsave(output_img_file, img.image)
         # printl("Final image <" + output_img_file + "> saved.")
         printl("image[" + str(img.id) + "] finished")
         return img
 
+    imgs = []
+    for i in range(len(g_FILES_ADDRESS)):
+        file = g_FILES_ADDRESS[i]
+        img = Image(misc.imread(file, mode='RGB'))
+        iid = file.split('/')[-1].split('.')[0]
+        img.id = int(iid)
+        imgs.append(img)
+    # plt.imshow(img.image)
+    # plt.show()
+
     num_cores = multiprocessing.cpu_count()
-    results = Parallel(n_jobs=num_cores)(delayed(start)(img) for img in imgs)
+    results1 = Parallel(n_jobs=num_cores)(delayed(start)(img) for img in imgs[:])
+    # results1 = Parallel(n_jobs=num_cores)(delayed(start)(img) for img in imgs[:num_cores])
+    # results2 = Parallel(n_jobs=num_cores)(delayed(start)(img) for img in imgs[num_cores:])
 
     file_output.close()
+
 elif platform.system() == 'Windows':
     print 'Windows:'
 else:
