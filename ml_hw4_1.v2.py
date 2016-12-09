@@ -143,7 +143,7 @@ if platform.system() == 'Linux':
                     if obj.is_color():
                         d = math.sqrt(sum((np.array(pixel) - np.array(c)) ** 2))
                     else:
-                        d = pixel - c
+                        d = math.fabs(pixel - c)
                     if d < min_d:
                         min_d = d
                         min_d_index = index
@@ -275,13 +275,11 @@ if platform.system() == 'Linux':
         imgs.append(img_dt)
         # plt.imshow(img_file)
         # plt.show()
-
-
     num_cores = multiprocessing.cpu_count()
-    # results = Parallel(n_jobs=num_cores)(delayed(start)(img) for img in imgs[:])
+    results = Parallel(n_jobs=num_cores)(delayed(start)(img) for img in imgs[:])
     # results1 = Parallel(n_jobs=num_cores)(delayed(start)(img) for img in imgs[:num_cores])
     # results2 = Parallel(n_jobs=num_cores)(delayed(start)(img) for img in imgs[num_cores:])
-    start(imgs[0])
+    # start(imgs[0])
 
     file_output.close()
 

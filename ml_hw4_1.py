@@ -160,7 +160,7 @@ if platform.system() == 'Linux':
             if clusters_count[cluster_index] == 0:
                 rand_r = random.randint(0, r)
                 rand_c = random.randint(0, c)
-                new_clusters[cluster_index] = obj.instance(rand_r, rand_c)
+                new_clusters[cluster_index] = obj.pixel(rand_r, rand_c)
             else:
                 cluster[g_RED_INDEX] /= clusters_count[cluster_index]
                 cluster[g_GREEN_INDEX] /= clusters_count[cluster_index]
@@ -178,7 +178,7 @@ if platform.system() == 'Linux':
             r, c = obj.size()
             rand_r = random.randint(0, r)
             rand_c = random.randint(0, c)
-            clusters.append(obj.instance(rand_r, rand_c))
+            clusters.append(obj.pixel(rand_r, rand_c))
         # clusters.append(obj.instance(270, 447))
 
         # Converging loop
