@@ -47,7 +47,7 @@ if platform.system() == 'Linux':
     g_TEST08 = "BSDS300/images/train/35008.jpg"
     g_TEST09 = "BSDS300/images/train/181018.jpg"
     g_TEST10 = "BSDS300/images/train/65019.jpg"
-    # g_TEST10 = "test.jpg"
+    # g_TEST10 = "1.test.jpg"
     g_FILES_ADDRESS = []
     g_FILES_ADDRESS.append(g_TEST01)
     g_FILES_ADDRESS.append(g_TEST02)
@@ -288,8 +288,6 @@ if platform.system() == 'Linux':
         images.append(img_dt)
     num_cores = multiprocessing.cpu_count()
     results = Parallel(n_jobs=num_cores)(delayed(start)(img) for img in images[:])
-    # results1 = Parallel(n_jobs=num_cores)(delayed(start)(img) for img in imgs[:num_cores])
-    # results2 = Parallel(n_jobs=num_cores)(delayed(start)(img) for img in imgs[num_cores:])
     # start(images[0])
 
     file_output.close()
