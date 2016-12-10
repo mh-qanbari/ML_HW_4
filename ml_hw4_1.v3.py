@@ -46,24 +46,24 @@ if platform.system() == 'Linux':
     g_TEST07 = "BSDS300/images/train/28075.jpg"
     g_TEST08 = "BSDS300/images/train/35008.jpg"
     g_TEST09 = "BSDS300/images/train/181018.jpg"
-    # g_TEST10 = "BSDS300/images/train/65019.jpg"
-    g_TEST10 = "1.IMG_0033.jpg"
+    g_TEST10 = "BSDS300/images/train/65019.jpg"
+    # g_TEST10 = "1.IMG_0033.jpg"
     # g_TEST10 = "1.test.jpg"
     g_FILES_ADDRESS = []
-    # g_FILES_ADDRESS.append(g_TEST01)
-    # g_FILES_ADDRESS.append(g_TEST02)
-    # g_FILES_ADDRESS.append(g_TEST03)
-    # g_FILES_ADDRESS.append(g_TEST04)
-    # g_FILES_ADDRESS.append(g_TEST05)
-    # g_FILES_ADDRESS.append(g_TEST06)
-    # g_FILES_ADDRESS.append(g_TEST07)
-    # g_FILES_ADDRESS.append(g_TEST08)
-    # g_FILES_ADDRESS.append(g_TEST09)
+    g_FILES_ADDRESS.append(g_TEST01)
+    g_FILES_ADDRESS.append(g_TEST02)
+    g_FILES_ADDRESS.append(g_TEST03)
+    g_FILES_ADDRESS.append(g_TEST04)
+    g_FILES_ADDRESS.append(g_TEST05)
+    g_FILES_ADDRESS.append(g_TEST06)
+    g_FILES_ADDRESS.append(g_TEST07)
+    g_FILES_ADDRESS.append(g_TEST08)
+    g_FILES_ADDRESS.append(g_TEST09)
     g_FILES_ADDRESS.append(g_TEST10)
 
     g_DATASET_FILE = "BSDS300/iids_test.txt"
     g_MAX_ITERATION = 10
-    g_CLUSTER_COUNT = 4
+    g_CLUSTER_COUNT = 10
     g_RGB_RED_INDEX = 0
     g_RGB_GREEN_INDEX = 1
     g_RGB_BLUE_INDEX = 2
@@ -152,7 +152,7 @@ if platform.system() == 'Linux':
             for cell_index in range(col_count):
                 pixel = obj.pixel(row_index, cell_index)
                 min_d_index = -1
-                min_d = 196608
+                min_d = 196608 + obj.image.width ** 2 + obj.image.height ** 2
                 index = -1
                 for c in clusters:
                     index += 1
@@ -160,9 +160,11 @@ if platform.system() == 'Linux':
                     if obj.is_color():
                         d = (pixel[g_RGB_RED_INDEX] - c[g_RGB_GREEN_INDEX]) ** 2 +\
                             (pixel[g_RGB_GREEN_INDEX] - c[g_RGB_GREEN_INDEX]) ** 2 +\
-                            (pixel[g_RGB_BLUE_INDEX] - c[g_RGB_BLUE_INDEX]) ** 2
+                            (pixel[g_RGB_BLUE_INDEX] - c[g_RGB_BLUE_INDEX]) ** 2 +\
+                            (row_index - c[3]) ** 2 + (cell_index - c[4]) ** 2  # considering line and column
                     elif obj.is_black_white() or obj.is_gray():
-                        d = math.fabs(pixel - c)
+                        d = (pixel - c[0]) ** 2 +\
+                            (row_index - c[1]) ** 2 + (cell_index - c[2]) ** 2  # considering line and column
                     if d < min_d:
                         min_d = d
                         min_d_index = index
@@ -227,46 +229,44 @@ if platform.system() == 'Linux':
         # initialize center of clusters
         for i in range(g_CLUSTER_COUNT):
             r, c = obj.image.size
-            # if obj.is_color() or obj.is_gray():
             rand_r = random.randint(0, r)
             rand_c = random.randint(0, c)
-            clusters.append(obj.pixel(rand_r, rand_c))
-            # elif obj.is_black_white():
-            #     clusters.append(random.random() * 255)
+            pixel = obj.pixel(rand_r, rand_c)
+            if obj.is_color():
+                clusters.append([pixel[g_RGB_RED_INDEX], pixel[g_RGB_GREEN_INDEX], pixel[g_RGB_BLUE_INDEX],
+                                 rand_r, rand_c])  # considering line and column
+            elif obj.is_black_white() or obj.is_gray():
+                clusters.append([pixel, rand_r, rand_c])  # considering line and column
 
         # Converging loop
         iter = 0
         labels = None
         should_stop = false
         while not should_stop:
-            if obj.is_color():
-                old_clusters = [[row[g_RGB_RED_INDEX], row[g_RGB_GREEN_INDEX], row[g_RGB_BLUE_INDEX]] for row in clusters]
-            elif obj.is_black_white() or obj.is_gray():
-                old_clusters = [row for row in clusters]
             iter += 1
 
             # Set label for every point
             labels = set_labels(obj, clusters)
 
             # Update center of clusters
-            clusters = update_centers(obj, labels)
+            new_clusters = update_centers(obj, labels)
 
             is_converged = true
             for i in range(g_CLUSTER_COUNT):
                 if obj.is_color():
-                    if (old_clusters[i][g_RGB_RED_INDEX] != clusters[i][g_RGB_RED_INDEX])\
-                            or (old_clusters[i][g_RGB_GREEN_INDEX] != clusters[i][g_RGB_GREEN_INDEX])\
-                            or (old_clusters[i][g_RGB_BLUE_INDEX] != clusters[i][g_RGB_BLUE_INDEX]):
+                    if (clusters[i][g_RGB_RED_INDEX] != new_clusters[i][g_RGB_RED_INDEX])\
+                            or (clusters[i][g_RGB_GREEN_INDEX] != new_clusters[i][g_RGB_GREEN_INDEX])\
+                            or (clusters[i][g_RGB_BLUE_INDEX] != new_clusters[i][g_RGB_BLUE_INDEX]):
                         is_converged = false
                         break
                 elif obj.is_black_white() or obj.is_gray():
-                    if old_clusters[i] != clusters[i]:
+                    if clusters[i] != new_clusters[i]:
                         is_converged = false
                         break
             if (iter > g_MAX_ITERATION) or is_converged:
                 should_stop = true
         print_("...finished")
-        return clusters, labels
+        return new_clusters, labels
 
 
     def start(img):
@@ -302,9 +302,9 @@ if platform.system() == 'Linux':
         iid = filename.split('/')[-1].split('.')[0]
         img_dt.id = int(iid)
         images.append(img_dt)
-    # num_cores = multiprocessing.cpu_count()
-    # results = Parallel(n_jobs=num_cores)(delayed(start)(img) for img in images[:])
-    start(images[0])
+    num_cores = multiprocessing.cpu_count()
+    results = Parallel(n_jobs=num_cores)(delayed(start)(img) for img in images[:])
+    # start(images[0])
 
     printl("--- %s seconds ---" % (time.time() - start_time))
 

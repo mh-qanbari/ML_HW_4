@@ -120,7 +120,7 @@ if platform.system() == 'Linux':
             labels.append([])
             for cell in row:
                 min_d_index = -1
-                min_d = 256
+                min_d = 196608
                 index = -1
                 for c in clusters:
                     index += 1
