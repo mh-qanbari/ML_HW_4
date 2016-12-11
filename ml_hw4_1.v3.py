@@ -63,7 +63,7 @@ if platform.system() == 'Linux':
 
     g_DATASET_FILE = "BSDS300/iids_test.txt"
     g_MAX_ITERATION = 10
-    g_CLUSTER_COUNT = 10
+    g_CLUSTER_COUNT = 7
     g_RGB_RED_INDEX = 0
     g_RGB_GREEN_INDEX = 1
     g_RGB_BLUE_INDEX = 2
@@ -227,8 +227,8 @@ if platform.system() == 'Linux':
 
         clusters = []
         # initialize center of clusters
+        r, c = obj.image.size
         for i in range(g_CLUSTER_COUNT):
-            r, c = obj.image.size
             rand_r = random.randint(0, r)
             rand_c = random.randint(0, c)
             pixel = obj.pixel(rand_r, rand_c)
@@ -237,6 +237,7 @@ if platform.system() == 'Linux':
                                  rand_r, rand_c])  # considering line and column
             elif obj.is_black_white() or obj.is_gray():
                 clusters.append([pixel, rand_r, rand_c])  # considering line and column
+        del c, r
 
         # Converging loop
         iter = 0
@@ -254,8 +255,8 @@ if platform.system() == 'Linux':
             is_converged = true
             for i in range(g_CLUSTER_COUNT):
                 if obj.is_color():
-                    if (clusters[i][g_RGB_RED_INDEX] != new_clusters[i][g_RGB_RED_INDEX])\
-                            or (clusters[i][g_RGB_GREEN_INDEX] != new_clusters[i][g_RGB_GREEN_INDEX])\
+                    if (clusters[i][g_RGB_RED_INDEX] != new_clusters[i][g_RGB_RED_INDEX]) \
+                            or (clusters[i][g_RGB_GREEN_INDEX] != new_clusters[i][g_RGB_GREEN_INDEX]) \
                             or (clusters[i][g_RGB_BLUE_INDEX] != new_clusters[i][g_RGB_BLUE_INDEX]):
                         is_converged = false
                         break
